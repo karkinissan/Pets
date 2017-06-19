@@ -26,7 +26,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.TextView;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import com.example.android.pets.data.PetDbHelper;
@@ -54,6 +54,7 @@ public class CatalogActivity extends AppCompatActivity {
             }
         });
         mDbHelper = new PetDbHelper(this);
+
 
 //        PetDbHelper mDbHelper = new PetDbHelper(this);
 //        SQLiteDatabase db = mDbHelper.getReadableDatabase();
@@ -97,37 +98,44 @@ public class CatalogActivity extends AppCompatActivity {
                 null);                  //The sort order for the returned rows.
 
 
-        try {
-            // Display the number of rows in the Cursor (which reflects the number of rows in the
-            // pets table in the database).
-            TextView displayView = (TextView) findViewById(R.id.text_view_pet);
-            StringBuilder sb = new StringBuilder();
-            sb.append("ID - Name - Breed - Gender - Weight\n");
-            while (cursor.moveToNext()) {
-                int idColumnIndex = cursor.getColumnIndexOrThrow(PetEntry._ID);
+        //try {
 
-                long itemId = cursor.getLong(cursor.getColumnIndexOrThrow(PetEntry._ID));
-                //Get the index of the column that name column in the database
-                int nameColumnIndex = cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_NAME);
-                //Use that columnIndex to get the value of the column in the row we're in.
-                String petName = cursor.getString(nameColumnIndex);
-                String petBreed = cursor.getString(cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_BREED));
-                int petGender = cursor.getInt(cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_GENDER));
-                int petWeight = cursor.getInt(cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_WEIGHT));
-                sb.append(Long.toString(itemId)).append(" - ")
-                        .append(petName).append(" - ")
-                        .append(petBreed).append(" - ")
-                        .append(Integer.toString(petGender)).append(" - ")
-                        .append(Integer.toString(petWeight))
-                        .append("\n");
-            }
-            displayView.setText("Number of rows in pets database table: " + cursor.getCount() + "\n" +
-                    sb);
-        } finally {
-            // Always close the cursor when you're done reading from it. This releases all its
-            // resources and makes it invalid.
-            cursor.close();
-        }
+            ListView listView = (ListView)findViewById(R.id.list_view_pet);
+
+            PetCursorAdapter petCursorAdapter = new PetCursorAdapter(this,cursor);
+
+            listView.setAdapter(petCursorAdapter);
+
+//            // Display the number of rows in the Cursor (which reflects the number of rows in the
+//            // pets table in the database).
+//            TextView displayView = (TextView) findViewById(R.id.text_view_pet);
+//            StringBuilder sb = new StringBuilder();
+//            sb.append("ID - Name - Breed - Gender - Weight\n");
+//            while (cursor.moveToNext()) {
+//                int idColumnIndex = cursor.getColumnIndexOrThrow(PetEntry._ID);
+//
+//                long itemId = cursor.getLong(cursor.getColumnIndexOrThrow(PetEntry._ID));
+//                //Get the index of the column that name column in the database
+//                int nameColumnIndex = cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_NAME);
+//                //Use that columnIndex to get the value of the column in the row we're in.
+//                String petName = cursor.getString(nameColumnIndex);
+//                String petBreed = cursor.getString(cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_BREED));
+//                int petGender = cursor.getInt(cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_GENDER));
+//                int petWeight = cursor.getInt(cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_WEIGHT));
+//                sb.append(Long.toString(itemId)).append(" - ")
+//                        .append(petName).append(" - ")
+//                        .append(petBreed).append(" - ")
+//                        .append(Integer.toString(petGender)).append(" - ")
+//                        .append(Integer.toString(petWeight))
+//                        .append("\n");
+//            }
+//            displayView.setText("Number of rows in pets database table: " + cursor.getCount() + "\n" +
+//                    sb);
+//        } finally {
+//            // Always close the cursor when you're done reading from it. This releases all its
+//            // resources and makes it invalid.
+//            cursor.close();
+//        }
     }
 
     @Override

@@ -175,7 +175,7 @@ public class PetProvider extends ContentProvider {
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
         long newRowId = db.insert(PetEntry.TABLE_NAME, null, values);
-        
+
         if (newRowId == -1) {
             Log.e(LOG_TAG, "Failed to insert row for " + uri);
             return null;
