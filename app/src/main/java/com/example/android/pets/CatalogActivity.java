@@ -15,9 +15,13 @@
  */
 package com.example.android.pets;
 
+import android.app.LoaderManager;
 import android.content.ContentValues;
+import android.content.CursorLoader;
 import android.content.Intent;
+import android.content.Loader;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
@@ -26,6 +30,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -36,9 +41,12 @@ import static com.example.android.pets.data.PetContract.PetEntry;
 /**
  * Displays list of pets that were entered and stored in the app.
  */
-public class CatalogActivity extends AppCompatActivity {
+public class CatalogActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
     public static final String LOG_TAG = CatalogActivity.class.getSimpleName();
-    private PetDbHelper mDbHelper;
+
+    private static final int URL_LOADER = 0;
+
+    private PetCursorAdapter mPetCursorAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,89 +61,25 @@ public class CatalogActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
-        mDbHelper = new PetDbHelper(this);
 
+        //Find the ListView which will be populated with the pet data
+        ListView petListView = (ListView) findViewById(R.id.list_view_pet);
+
+        //Find and set empty view on the ListView so that it only shows when the list has
+        //0 items.
+        View emptyView = findViewById(R.id.empty_view);
+        petListView.setEmptyView(emptyView);
+
+        //Setup an Adapter to create a list item for each row of pet data in the Cursor.
+        //Ths is no pet data yet (until the loader finishes) so pass in null for the Cursor.
+        mPetCursorAdapter = new PetCursorAdapter(this, null);
+        petListView.setAdapter(mPetCursorAdapter);
+
+        //Kick off the loader
+        getLoaderManager().initLoader(URL_LOADER, null, CatalogActivity.this);
 
 //        PetDbHelper mDbHelper = new PetDbHelper(this);
 //        SQLiteDatabase db = mDbHelper.getReadableDatabase();
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-        displayDatabaseInfo();
-    }
-
-    /**
-     * Temporary helper method to display information in the onscreen TextView about the state of
-     * the pets database.
-     */
-    private void displayDatabaseInfo() {
-        // To access our database, we instantiate our subclass of SQLiteOpenHelper
-        // and pass the context, which is the current activity.
-
-
-        // Define a projection that specifies which columns from the database
-        // you will actually use after this query.
-        String[] projection = {
-                PetEntry._ID,
-                PetEntry.COLUMN_PET_NAME,
-                PetEntry.COLUMN_PET_BREED,
-                PetEntry.COLUMN_PET_GENDER,
-                PetEntry.COLUMN_PET_WEIGHT
-        };
-        // Filter results WHERE "title" = 'My Title'
-        String selection = PetEntry.COLUMN_PET_GENDER + " = ?";
-        String[] selectionArgs = {String.valueOf(PetEntry.GENDER_MALE)};
-
-        //Perform a query on the database using the ContentProvider.
-        //Use the {@Link PetEntry.CONTENT_URI} to access the pet data
-        Cursor cursor = getContentResolver().query(
-                PetEntry.CONTENT_URI,   //The content URI of the pets table
-                projection,             //The columns to be selected
-                null,                   //Selection Criteria
-                null,                   //Selection Arguments
-                null);                  //The sort order for the returned rows.
-
-
-        //try {
-
-            ListView listView = (ListView)findViewById(R.id.list_view_pet);
-
-            PetCursorAdapter petCursorAdapter = new PetCursorAdapter(this,cursor);
-
-            listView.setAdapter(petCursorAdapter);
-
-//            // Display the number of rows in the Cursor (which reflects the number of rows in the
-//            // pets table in the database).
-//            TextView displayView = (TextView) findViewById(R.id.text_view_pet);
-//            StringBuilder sb = new StringBuilder();
-//            sb.append("ID - Name - Breed - Gender - Weight\n");
-//            while (cursor.moveToNext()) {
-//                int idColumnIndex = cursor.getColumnIndexOrThrow(PetEntry._ID);
-//
-//                long itemId = cursor.getLong(cursor.getColumnIndexOrThrow(PetEntry._ID));
-//                //Get the index of the column that name column in the database
-//                int nameColumnIndex = cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_NAME);
-//                //Use that columnIndex to get the value of the column in the row we're in.
-//                String petName = cursor.getString(nameColumnIndex);
-//                String petBreed = cursor.getString(cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_BREED));
-//                int petGender = cursor.getInt(cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_GENDER));
-//                int petWeight = cursor.getInt(cursor.getColumnIndexOrThrow(PetEntry.COLUMN_PET_WEIGHT));
-//                sb.append(Long.toString(itemId)).append(" - ")
-//                        .append(petName).append(" - ")
-//                        .append(petBreed).append(" - ")
-//                        .append(Integer.toString(petGender)).append(" - ")
-//                        .append(Integer.toString(petWeight))
-//                        .append("\n");
-//            }
-//            displayView.setText("Number of rows in pets database table: " + cursor.getCount() + "\n" +
-//                    sb);
-//        } finally {
-//            // Always close the cursor when you're done reading from it. This releases all its
-//            // resources and makes it invalid.
-//            cursor.close();
-//        }
     }
 
     @Override
@@ -153,25 +97,31 @@ public class CatalogActivity extends AppCompatActivity {
             //Respond to a click on the "Insert Dummy Data" menu option.
             case R.id.action_insert_dummy_data:
                 insertDummyData();
-                displayDatabaseInfo();
                 return true;
-            //Respond to a clicn on the "Delete all entries" menu option.
+            //Respond to a click on the "Delete all entries" menu option.
             case R.id.action_delete_all_entries:
                 deleteAllPets();
-                displayDatabaseInfo();
                 return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
     private void insertDummyData() {
+        PetDbHelper petDbHelper = new PetDbHelper(this);
+        SQLiteDatabase db = petDbHelper.getWritableDatabase();
+        db.execSQL("INSERT INTO pets ( name, breed, gender, weight) VALUES ( \"Tommy\", \"Pomeranian\", 1, 4);");
+        db.execSQL("INSERT INTO pets (name, breed, gender, weight) VALUES (\"Binx\", \"Bombay\", 1, 6);");
+        db.execSQL("INSERT INTO pets (name, breed, gender, weight)  VALUES ( \"Lady\", \"Cocker Spaniel\", 2, 14);");
+        db.execSQL("INSERT INTO pets (name, breed, gender, weight) VALUES (\"Duke\", \"Unknown\", 1, 70);");
+        db.execSQL("INSERT INTO pets (name, breed, gender, weight) VALUES (\"Cat\", \"Tabby\", 0, 7);");
+        db.execSQL("INSERT INTO pets (name, breed, gender, weight) VALUES (\"Baxter\", \"Border Terrier\", 1, 8);");
+        db.execSQL("INSERT INTO pets (name, gender, weight) VALUES (\"Arlene\", 2, 5);");
         ContentValues values = new ContentValues();
         values.put(PetEntry.COLUMN_PET_NAME, "Garfield");
         values.put(PetEntry.COLUMN_PET_BREED, "Tabby");
         values.put(PetEntry.COLUMN_PET_GENDER, PetEntry.GENDER_MALE);
         values.put(PetEntry.COLUMN_PET_WEIGHT, 5);
         Uri uri = getContentResolver().insert(PetEntry.CONTENT_URI, values);
-
         Toast.makeText(this, R.string.dummy_data_inserted, Toast.LENGTH_SHORT).show();
         Log.v(LOG_TAG, "New Data Inserted. ID = " + uri);
 
@@ -180,7 +130,52 @@ public class CatalogActivity extends AppCompatActivity {
     private void deleteAllPets() {
         //int numberOfRowsDeleted = getContentResolver().delete(PetEntry.CONTENT_URI,
         //        PetEntry.COLUMN_PET_NAME+"=?",new String[]{"Garfield"});
-        int numberOfRowsDeleted = getContentResolver().delete(PetEntry.CONTENT_URI,null,null);
-        Toast.makeText(this,"Rows deleted: "+numberOfRowsDeleted,Toast.LENGTH_SHORT).show();
+        int numberOfRowsDeleted = getContentResolver().delete(PetEntry.CONTENT_URI, null, null);
+        Toast.makeText(this, "Rows deleted: " + numberOfRowsDeleted, Toast.LENGTH_SHORT).show();
+    }
+
+
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        //Define a projection that specifies the columns from the table we care about
+        String[] projection = {
+                PetEntry._ID,
+                PetEntry.COLUMN_PET_NAME,
+                PetEntry.COLUMN_PET_BREED,
+        };
+        //This loader wil execute the ContentProvider's query method on a background thread
+        return new CursorLoader(
+                this,                   //Parent activity context
+                PetEntry.CONTENT_URI,   //Provider content URI to query
+                projection,             //Columns to include n the resulting Cursor
+                null,                   //No selection clause
+                null,                   //No selection Arguments
+                null);                  //Default sort order
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, final Cursor cursor) {
+        //Delete the list item on long click
+        ListView petListView = (ListView) findViewById(R.id.list_view_pet);
+        petListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                String selection = PetEntry._ID+"=?";
+                String[] selectionArgs = {cursor.getString(cursor.getColumnIndexOrThrow(PetEntry._ID))};
+                getContentResolver().delete(PetEntry.CONTENT_URI,selection,selectionArgs);
+                Log.v(LOG_TAG,"Entry deleted. ID: "+selectionArgs[0]);
+                Toast.makeText(CatalogActivity.this, "Deleted", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+        });
+
+        //Update PetCursorAdapter with this cursor containing updated pets dat
+        mPetCursorAdapter.swapCursor(cursor);
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+        //callback called when the data needs to be deletec
+        mPetCursorAdapter.swapCursor(null);
     }
 }

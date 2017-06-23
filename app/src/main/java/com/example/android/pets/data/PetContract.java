@@ -29,6 +29,7 @@ public final class PetContract {
     /**
      * Use CONTENT_AUTHORITY to create the base of all URI's which apps will use to contact
      * the content provider.
+     * BASE_CONTENT_URI = content://com.example.android.pets
      */
     public static final Uri BASE_CONTENT_URI = Uri.parse("content://" + CONTENT_AUTHORITY);
 
@@ -44,6 +45,7 @@ public final class PetContract {
 
         /**
          * The content URI to access the pet data in the provider
+         * CONTENT_URI = content://com.example.android.pets/pets
          */
         public static final Uri CONTENT_URI = Uri.withAppendedPath(BASE_CONTENT_URI, PATH_PETS);
 

@@ -116,6 +116,8 @@ public class PetProvider extends ContentProvider {
             default:
                 throw new IllegalArgumentException("Cannot Query. Unknown URI " + uri);
         }
+        //For every cursor, we set a notificationURI so that we can check when a data changes.
+        cursor.setNotificationUri(getContext().getContentResolver(), uri);
         return cursor;
     }
 
@@ -127,7 +129,7 @@ public class PetProvider extends ContentProvider {
     @Override
     public String getType(@NonNull Uri uri) {
         int match = sUriMatcher.match(uri);
-        switch (match){
+        switch (match) {
             case PETS:
                 return PetEntry.CONTENT_LIST_TYPE;
             case PET_ID:
@@ -180,6 +182,10 @@ public class PetProvider extends ContentProvider {
             Log.e(LOG_TAG, "Failed to insert row for " + uri);
             return null;
         }
+        //Now that the data is inserted, we need to call notifyChange to notify call listeners
+        // that the data has changed for the pet content URI and to ensure that the list gets updated.
+        getContext().getContentResolver().notifyChange(uri, null);
+
         // Once we know the ID of the new row in the table,
         // return the new URI with the ID appended to the end of it
         return ContentUris.withAppendedId(uri, newRowId);
@@ -191,17 +197,27 @@ public class PetProvider extends ContentProvider {
     @Override
     public int delete(@NonNull Uri uri, String selection, String[] selectionArgs) {
         int match = sUriMatcher.match(uri);
+        int numberOfRowsDeleted = -1;
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         switch (match) {
             case PETS:
                 // Delete all rows that match the selection and selection args
-                return db.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+                numberOfRowsDeleted = db.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
 
+                //Now that the data is deleted, we need to call notifyChange to ensure that the list gets updated.
+                getContext().getContentResolver().notifyChange(uri, null);
+
+                return numberOfRowsDeleted;
             case PET_ID:
                 // Delete a single row given by the ID in the URI
                 selection = PetEntry._ID + "=?";
                 selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
-                return db.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+                numberOfRowsDeleted = db.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+
+                //Now that the data is deleted, we need to call notifyChange to ensure that the list gets updated.
+                getContext().getContentResolver().notifyChange(uri, null);
+
+                return numberOfRowsDeleted;
 
             default:
                 throw new IllegalArgumentException("Deletion is not supported for URI: " + uri);
@@ -247,7 +263,12 @@ public class PetProvider extends ContentProvider {
                 // arguments will be a String array containing the actual ID.
                 selection = PetEntry._ID + "=?";
                 selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
-                return updatePet(values, selection, selectionArgs);
+                int numberOfPetsUpdated = updatePet(values, selection, selectionArgs);
+
+                //Now that the data is updated, we need to call notifyChange to ensure that the list gets updated.
+                getContext().getContentResolver().notifyChange(uri, null);
+
+                return numberOfPetsUpdated;
 
             default:
                 throw new IllegalArgumentException("Update is nor supported for URI: " + uri);
