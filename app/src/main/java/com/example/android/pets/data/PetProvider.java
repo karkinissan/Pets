@@ -116,7 +116,11 @@ public class PetProvider extends ContentProvider {
             default:
                 throw new IllegalArgumentException("Cannot Query. Unknown URI " + uri);
         }
+
         //For every cursor, we set a notificationURI so that we can check when a data changes.
+        // Set notification URI on the Cursor,
+        // so we know what content URI the Cursor was created for.
+        // If the data at this URI changes, then we know we need to update the Cursor.
         cursor.setNotificationUri(getContext().getContentResolver(), uri);
         return cursor;
     }
@@ -173,17 +177,22 @@ public class PetProvider extends ContentProvider {
             throw new IllegalArgumentException("Weight cannot be negative");
         }
 
+        // No need to check the breed, any value is valid (including null).
+
         //Get writable database
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
+        // Insert the new pet with the given values
         long newRowId = db.insert(PetEntry.TABLE_NAME, null, values);
 
+        // If the ID is -1, then the insertion failed. Log an error and return null.
         if (newRowId == -1) {
             Log.e(LOG_TAG, "Failed to insert row for " + uri);
             return null;
         }
-        //Now that the data is inserted, we need to call notifyChange to notify call listeners
+        // Now that the data is inserted, we need to call notifyChange to notify call listeners
         // that the data has changed for the pet content URI and to ensure that the list gets updated.
+        // Notify all listeners that the data has changed for the pet content URI
         getContext().getContentResolver().notifyChange(uri, null);
 
         // Once we know the ID of the new row in the table,
@@ -203,25 +212,26 @@ public class PetProvider extends ContentProvider {
             case PETS:
                 // Delete all rows that match the selection and selection args
                 numberOfRowsDeleted = db.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
-
-                //Now that the data is deleted, we need to call notifyChange to ensure that the list gets updated.
-                getContext().getContentResolver().notifyChange(uri, null);
-
-                return numberOfRowsDeleted;
+                break;
             case PET_ID:
                 // Delete a single row given by the ID in the URI
                 selection = PetEntry._ID + "=?";
                 selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
                 numberOfRowsDeleted = db.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
-
-                //Now that the data is deleted, we need to call notifyChange to ensure that the list gets updated.
-                getContext().getContentResolver().notifyChange(uri, null);
-
-                return numberOfRowsDeleted;
+                break;
 
             default:
                 throw new IllegalArgumentException("Deletion is not supported for URI: " + uri);
         }
+
+        //Now that the data is deleted, we need to call notifyChange to ensure that the list gets updated.
+        // If 1 or more rows were deleted, then notify all listeners that the data at the
+        // given URI has changed
+        if (numberOfRowsDeleted != 0) {
+            getContext().getContentResolver().notifyChange(uri, null);
+        }
+        return numberOfRowsDeleted;
+
     }
 
     /**
@@ -263,11 +273,14 @@ public class PetProvider extends ContentProvider {
                 // arguments will be a String array containing the actual ID.
                 selection = PetEntry._ID + "=?";
                 selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
+
+                // Perform the update on the database and get the number of rows affected
                 int numberOfPetsUpdated = updatePet(values, selection, selectionArgs);
 
                 //Now that the data is updated, we need to call notifyChange to ensure that the list gets updated.
-                getContext().getContentResolver().notifyChange(uri, null);
-
+                if (numberOfPetsUpdated != 0) {
+                    getContext().getContentResolver().notifyChange(uri, null);
+                }
                 return numberOfPetsUpdated;
 
             default:

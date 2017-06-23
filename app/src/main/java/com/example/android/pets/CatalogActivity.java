@@ -16,6 +16,7 @@
 package com.example.android.pets;
 
 import android.app.LoaderManager;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.CursorLoader;
 import android.content.Intent;
@@ -75,6 +76,39 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
         mPetCursorAdapter = new PetCursorAdapter(this, null);
         petListView.setAdapter(mPetCursorAdapter);
 
+        //Open Editor Activity when we click on a pet. Pass the Uri
+        petListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                //view = the particular view of the item
+                //position  = position of the item in the list view
+                //id = id of the item
+                Intent intent = new Intent(CatalogActivity.this, EditorActivity.class);
+                //Forms a URI that represents the specific pet that was clicked on.
+                Uri currentPetUri = ContentUris.withAppendedId(PetEntry.CONTENT_URI, id);
+                //Pass the URI with the intent
+                intent.setData(currentPetUri);
+                startActivity(intent);
+            }
+        });
+
+        //Delete the list item on long click
+        petListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                //id is the id of the list item in the database.
+
+                //Forms a URI that represents the specific pet that was clicked on.
+                Uri currentPetUri = ContentUris.withAppendedId(PetEntry.CONTENT_URI, id);
+
+                getContentResolver().delete(currentPetUri, null, null);
+
+                Log.v(LOG_TAG, "Entry deleted. ID: " + id);
+                Toast.makeText(CatalogActivity.this, "Deleted", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+        });
+
         //Kick off the loader
         getLoaderManager().initLoader(URL_LOADER, null, CatalogActivity.this);
 
@@ -123,7 +157,7 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
         values.put(PetEntry.COLUMN_PET_WEIGHT, 5);
         Uri uri = getContentResolver().insert(PetEntry.CONTENT_URI, values);
         Toast.makeText(this, R.string.dummy_data_inserted, Toast.LENGTH_SHORT).show();
-        Log.v(LOG_TAG, "New Data Inserted. ID = " + uri);
+        Log.v(LOG_TAG, "Dummy Data Inserted. ID = " + uri);
 
     }
 
@@ -155,19 +189,7 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
 
     @Override
     public void onLoadFinished(Loader<Cursor> loader, final Cursor cursor) {
-        //Delete the list item on long click
-        ListView petListView = (ListView) findViewById(R.id.list_view_pet);
-        petListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-                String selection = PetEntry._ID+"=?";
-                String[] selectionArgs = {cursor.getString(cursor.getColumnIndexOrThrow(PetEntry._ID))};
-                getContentResolver().delete(PetEntry.CONTENT_URI,selection,selectionArgs);
-                Log.v(LOG_TAG,"Entry deleted. ID: "+selectionArgs[0]);
-                Toast.makeText(CatalogActivity.this, "Deleted", Toast.LENGTH_SHORT).show();
-                return true;
-            }
-        });
+
 
         //Update PetCursorAdapter with this cursor containing updated pets dat
         mPetCursorAdapter.swapCursor(cursor);
