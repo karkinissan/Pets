@@ -19,6 +19,7 @@ import android.app.LoaderManager;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.CursorLoader;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
@@ -26,6 +27,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -134,7 +136,7 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
                 return true;
             //Respond to a click on the "Delete all entries" menu option.
             case R.id.action_delete_all_entries:
-                deleteAllPets();
+                showDeleteConfirmationDialog();
                 return true;
         }
         return super.onOptionsItemSelected(item);
@@ -160,11 +162,34 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
         Log.v(LOG_TAG, "Dummy Data Inserted. ID = " + uri);
 
     }
-
+    private void showDeleteConfirmationDialog(){
+        // Create an AlertDialog.Builder and set the message, and click listeners
+        // for the postivie and negative buttons on the dialog.
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage(R.string.delete_all_dialog_msg);
+        builder.setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                // User clicked the "Delete" button, so delete all pets.
+                deleteAllPets();
+            }
+        });
+        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                // User clicked the "Cancel" button, so dismiss the dialog
+                // and continue editing the pet.
+                if (dialog!=null){
+                    dialog.dismiss();
+                }
+            }
+        });
+        AlertDialog alertDialog = builder.create();
+        alertDialog.show();
+    }
     private void deleteAllPets() {
-        //int numberOfRowsDeleted = getContentResolver().delete(PetEntry.CONTENT_URI,
-        //        PetEntry.COLUMN_PET_NAME+"=?",new String[]{"Garfield"});
         int numberOfRowsDeleted = getContentResolver().delete(PetEntry.CONTENT_URI, null, null);
+        Toast.makeText(this, "All Pets Deleted", Toast.LENGTH_SHORT).show();
         Toast.makeText(this, "Rows deleted: " + numberOfRowsDeleted, Toast.LENGTH_SHORT).show();
     }
 
@@ -189,8 +214,6 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
 
     @Override
     public void onLoadFinished(Loader<Cursor> loader, final Cursor cursor) {
-
-
         //Update PetCursorAdapter with this cursor containing updated pets dat
         mPetCursorAdapter.swapCursor(cursor);
     }
@@ -200,4 +223,5 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
         //callback called when the data needs to be deletec
         mPetCursorAdapter.swapCursor(null);
     }
+
 }
